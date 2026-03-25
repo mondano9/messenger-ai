@@ -5,86 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>5P Assistant</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
         body { background-color: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
-        
-        /* Messenger Style Header */
-        .app-header { padding: 15px; background: white; border-bottom: 1px solid #ddd; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10; }
-        .status-dot { width: 12px; height: 12px; background: #31a24c; border-radius: 50%; border: 2px solid white; }
-        .app-header h3 { font-size: 16px; font-weight: 600; color: #050505; }
-
-        /* Chat Window */
-        .chat-window { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-        
-        /* Message Bubbles */
-        .msg { max-width: 75%; padding: 10px 16px; border-radius: 18px; font-size: 15px; line-height: 1.4; position: relative; }
+        .header { padding: 15px; background: white; border-bottom: 1px solid #ddd; display: flex; align-items: center; gap: 10px; }
+        .dot { width: 10px; height: 10px; background: #31a24c; border-radius: 50%; }
+        .chat { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 75%; padding: 10px 15px; border-radius: 18px; font-size: 15px; }
         .bot { align-self: flex-start; background: #e4e6eb; color: black; border-bottom-left-radius: 4px; }
         .user { align-self: flex-end; background: #0084ff; color: white; border-bottom-right-radius: 4px; }
-
-        /* Input Area */
-        .input-area { padding: 10px 15px; display: flex; gap: 10px; background: white; border-top: 1px solid #ddd; align-items: center; }
-        input { flex: 1; padding: 10px 18px; border-radius: 20px; border: 1px solid #ddd; outline: none; background: #f0f2f5; font-size: 15px; }
-        button { background: none; border: none; color: #0084ff; font-weight: bold; font-size: 16px; cursor: pointer; padding: 5px; }
+        .input-box { padding: 10px; display: flex; gap: 10px; background: white; border-top: 1px solid #ddd; }
+        input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; outline: none; background: #f0f2f5; }
+        button { background: none; border: none; font-weight: bold; color: #0084ff; cursor: pointer; }
     </style>
 </head>
 <body>
-
-    <header class="app-header">
-        <div class="status-dot"></div>
-        <h3>5P AI Business Assistant</h3>
-    </header>
-
-    <div id="chat" class="chat-window">
-        <div class="msg bot">Hello! Ready to calculate your 5-peso profits? Ask me anything! ₱</div>
-    </div>
-
-    <div class="input-area">
-        <input type="text" id="userInput" placeholder="Type a message..." autocomplete="off">
+    <div class="header"><div class="dot"></div><h3>5P AI Assistant</h3></div>
+    <div id="chat" class="chat"><div class="msg bot">Hello! I'll help you earn ₱5 profit. Ask me anything!</div></div>
+    <div class="input-box">
+        <input type="text" id="in" placeholder="Cost price?">
         <button onclick="send()">Send</button>
     </div>
 
     <script>
-        const chat = document.getElementById('chat');
-        const input = document.getElementById('userInput');
-
         async function send() {
-            const text = input.value.trim();
-            if (!text) return;
+            const i = document.getElementById('in'), c = document.getElementById('chat');
+            if(!i.value) return;
+            const text = i.value;
+            c.innerHTML += `<div class="msg user">${text}</div>`;
+            i.value = '';
+            c.scrollTop = c.scrollHeight;
 
-            // Add User Message
-            chat.innerHTML += `<div class="msg user">${text}</div>`;
-            input.value = '';
-            chat.scrollTop = chat.scrollHeight;
-
-            // Add "Thinking" bubble
-            const loadingId = "load-" + Date.now();
-            chat.innerHTML += `<div class="msg bot" id="${loadingId}">...</div>`;
-            chat.scrollTop = chat.scrollHeight;
+            const loadId = "L" + Date.now();
+            c.innerHTML += `<div class="msg bot" id="${loadId}">...</div>`;
 
             try {
-                // Talk to your local Ollama
-                const res = await fetch('http://localhost:11434/api/generate', {
+                const res = await fetch('http://localhost:11434/api/chat', {
                     method: 'POST',
                     body: JSON.stringify({ 
                         model: 'llama3.2:1b', 
-                        prompt: `You are a business assistant for a shop in the Philippines. Our goal is 5 pesos profit per item. User says: ${text}`, 
+                        messages: [
+                            { role: 'system', content: 'You are a shop assistant in the Philippines. Always add 5 pesos to the cost price the user gives. Keep it short.' },
+                            { role: 'user', content: text }
+                        ], 
                         stream: false 
                     })
                 });
                 const data = await res.json();
-                
-                // Replace "..." with actual AI response
-                document.getElementById(loadingId).innerText = data.response;
-            } catch (err) {
-                document.getElementById(loadingId).innerText = "Error: Make sure 'ollama serve' is running in another Termux session!";
+                // FIXED: Using data.message.content to avoid "undefined"
+                document.getElementById(loadId).innerText = data.message.content;
+            } catch {
+                document.getElementById(loadId).innerText = "Error: Check your ollama serve window!";
             }
-            chat.scrollTop = chat.scrollHeight;
+            c.scrollTop = c.scrollHeight;
         }
-
-        // Allow "Enter" key to send
-        input.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") send();
-        });
     </script>
 </body>
 </html>
